@@ -1,7 +1,7 @@
 
 library(shiny)
 library(leaflet)
-library(lubridate)
+library(lubridate) 
 
 
 source("utilities.R")
@@ -86,6 +86,9 @@ extiende.df <- function(df)
 etiqueta <- c("seguridad","observación","ajuste","control")
 colores <-  c("darkorange","yellow","blue","darkgreen")
 colors2 = rgb(t(col2rgb(rev(colores)))/ 255)
+
+# coordenadas base del mapa y el correspondiente zoom 
+
 x0 <- -66.5
 y0 <-  18.25
 z0 <- 10  
