@@ -83,6 +83,8 @@ df <- read.csv("embalses.csv",
 
 attach(df)
 
+# para convertir los siteIDs de USGS a cadena de caracteres
+
 siteID <- paste(siteID)
 
 names(siteID) <- nombre
