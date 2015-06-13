@@ -41,9 +41,9 @@ convierteNumerico <- function(vector)
   return(as.numeric(as.character(vector)))
 }
 
-#############################################
-## funcion para buscar datos de nivel en USGS
-#############################################
+############################################
+# funcion para buscar datos de nivel en USGS
+############################################
 
 buscaNiveles <- function(misiteID,startDate=fecha1,endDate=fecha2)
 {
@@ -72,6 +72,10 @@ buscaNiveles <- function(misiteID,startDate=fecha1,endDate=fecha2)
   }
   return(df.niveles)
 }
+
+############################################################################################
+# para leer archivo con los datos de cada uno de los 11 embalses y colocarlo en en dataframe
+############################################################################################
 
 df <- read.csv("embalses.csv",
                            header=TRUE,

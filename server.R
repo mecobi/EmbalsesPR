@@ -3,12 +3,24 @@ library(shiny)
 library(leaflet)
 library(lubridate) 
 
-
 source("utilities.R")
 
-# utilizar archivo local en caso de que no halla coneccion al internet 
+# utilizar archivo local para el caso de que no halla coneccion al internet 
 
 offline <- FALSE
+
+# codigos de colores
+
+etiqueta <- c("seguridad","observación","ajuste","control")
+colores <-  c("darkorange","yellow","blue","darkgreen")
+codigo.colores <- rgb(t(col2rgb(rev(colores)))/ 255)
+
+# coordenadas base del mapa y el correspondiente zoom 
+
+x0 <- -66.5
+y0 <-  18.25
+z0 <- 10  
+
 
 ################################################
 ## funcion para cambiar el formato de fecha/hora
@@ -83,15 +95,6 @@ extiende.df <- function(df)
   return(df)
 }
 
-etiqueta <- c("seguridad","observación","ajuste","control")
-colores <-  c("darkorange","yellow","blue","darkgreen")
-colors2 = rgb(t(col2rgb(rev(colores)))/ 255)
-
-# coordenadas base del mapa y el correspondiente zoom 
-
-x0 <- -66.5
-y0 <-  18.25
-z0 <- 10  
 
 shinyServer(function(input, output,session){
   
@@ -303,7 +306,7 @@ shinyServer(function(input, output,session){
                                     layerId=df$nombre)       
       
        mapa <- mapa %>%  addLegend(position = 'topright',
-                          colors = colors2,
+                          colors = codigo.colores,
                           labels = etiqueta, 
                           opacity = 1,
                           title = 'Estado del embalse',
@@ -372,15 +375,12 @@ observeEvent(input$tendencia,{
 ################################################
 
 observeEvent(input$leyenda,{
-  etiqueta <- c("seguridad","observación","ajuste","control")
-  colores <-  c("darkorange","yellow","blue","darkgreen")
-  colors2 = rgb(t(col2rgb(rev(colores)))/ 255)
   proxy <- leafletProxy("mapa",session)
   z0 <- input$mapa_zoom
   if(input$leyenda)
   { 
     proxy %>% addLegend(position = 'topright',
-                        colors = colors2,
+                        colors = codigo.colores,
                         labels = etiqueta, 
                         opacity = 1,
                         title = 'Estado del embalse',
