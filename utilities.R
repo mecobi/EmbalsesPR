@@ -32,6 +32,7 @@ normalizaNivel <- function(x,xmin,xmax)
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 
 
+
 #############################################
 # funcion para convertir un vector a numerico
 #############################################
@@ -53,9 +54,8 @@ buscaNiveles <- function(misiteID,startDate=fecha1,endDate=fecha2)
   #url.parte1 <- "http://nwis.waterdata.usgs.gov/nwis/uv?cb_62614=on&cb_62616=on&format=rdb&site_no="
   url.parte2 <- paste0(misiteID,"&period=&begin_date=",startDate,"&end_date=",endDate)
   url.final <- paste0(url.parte1,url.parte2)
-  #print(url.final)
   datos <- tryCatch(read.table(url.final,sep="\t",header=TRUE),finally=NULL)
-  if(!is.null(datos) > 0)
+  if(!is.null(datos))
   {
   names(datos) <- c("agency","site","datetime","codigo","nivel","status")
   fecha.tiempo <- datos$datetime[-1]

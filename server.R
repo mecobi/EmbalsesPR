@@ -122,14 +122,14 @@ shinyServer(function(input, output,session){
                        load("df.RData")
                      }else
                      {
-                       df <<- extiende.df(df)
+                       df2 <<- extiende.df(df)
                      }
                      incProgress(1.0)})  
       
-      nivel.norm <- normalizaNivel(df$nivel,df$ajuste,df$desborde)
+      nivel.norm <- normalizaNivel(df2$nivel,df2$ajuste,df2$desborde)
       
       miIcono <<- icons(
-        iconUrl = ifelse(df$tendencia >= 0,
+        iconUrl = ifelse(df2$tendencia >= 0,
                          "http://png-2.findicons.com/files/icons/2338/reflection/128/arrow_up_1.png", 
                          "http://png-2.findicons.com/files/icons/2338/reflection/128/arrow_down_1.png"),
         iconWidth = 15, iconHeight = 15,
@@ -141,7 +141,7 @@ shinyServer(function(input, output,session){
       
       incProgress(0.33)        
       
-      mapa <- leaflet(df) %>% 
+      mapa <- leaflet(df2) %>% 
         addTiles("http://{s}.tile.opencyclemap.org/cycle/{z}/{x}/{y}.png",
                  attribution="CienciaDatosPR-Matemáticas-UPR-Humacao",
                  options=tileOptions(detectRetina=TRUE))      %>%
@@ -149,12 +149,13 @@ shinyServer(function(input, output,session){
       
       incProgress(0.33)
       
-      nombre.embalse <- toupper(df$nombre)
+      nombre.embalse <- toupper(df2$nombre)
       
-      contenido <- paste("<B><font color='blue'>",toupper(df$nombre),"</font></B>","<BR/>",
+      contenido <- paste("<B><font color='blue'>",toupper(df2$nombre),"</font></B>","<BR/>",
                    "<font color='blue'><B>Nivel:</B></font>",
-                   sprintf("%3.2f",df$nivel)," m","<BR/>",
-                   "<B><font color='blue'>Fecha:</B></font>",df$mifecha)
+                   sprintf("%3.2f",df2$nivel)," m","<BR/>",
+                   #df2$tendencia," m/hora","<BR/>",
+                   "<B><font color='blue'>Fecha:</B></font>",df2$mifecha)
       
       grosor1 <- 0.005
       altura1 <- 0.028
@@ -169,10 +170,10 @@ shinyServer(function(input, output,session){
                         weight=1,
                         color="black",
                         opacity=1,
-                        lng1=df$longitude-grosor1,
-                        lat1=df$latitude-altura1,
-                        lng2=df$longitude+grosor1,
-                        lat2=df$latitude+altura1,
+                        lng1=df2$longitude-grosor1,
+                        lat1=df2$latitude-altura1,
+                        lng2=df2$longitude+grosor1,
+                        lat2=df2$latitude+altura1,
                         popup=contenido)
       
         grosor2 <- 0.005
@@ -181,16 +182,16 @@ shinyServer(function(input, output,session){
         
         mapa <- mapa %>% 
           addRectangles(fill=TRUE,
-                        fillColor=df$micolor,
+                        fillColor=df2$micolor,
                         weight=0.5,
                         color="black",
                         stroke=FALSE,
-                        fillOpacity=df$miopacidad,
-                        opacity=df$miopacidad,
-                        lng1=df$longitude-grosor2,
-                        lat1=(df$latitude-altura1),
-                        lng2=df$longitude+grosor2,
-                        lat2=df$latitude+ (altura1)*nivel.norm,
+                        fillOpacity=df2$miopacidad,
+                        opacity=df2$miopacidad,
+                        lng1=df2$longitude-grosor2,
+                        lat1=(df2$latitude-altura1),
+                        lng2=df2$longitude+grosor2,
+                        lat2=df2$latitude+ (altura1)*nivel.norm,
                         popup=contenido)
         
         # escala
@@ -202,10 +203,10 @@ shinyServer(function(input, output,session){
                             weight=0.5,
                             color="black",
                             opacity=1,
-                            lng1=df$longitude-grosor1,
-                            lat1=df$latitude+altura1*normalizaNivel(df$seguridad,df$ajuste,df$desborde),
-                            lng2=df$longitude+grosor1,
-                            lat2=df$latitude+altura1*normalizaNivel(df$seguridad,df$ajuste,df$desborde),
+                            lng1=df2$longitude-grosor1,
+                            lat1=df2$latitude+altura1*normalizaNivel(df2$seguridad,df2$ajuste,df2$desborde),
+                            lng2=df2$longitude+grosor1,
+                            lat2=df2$latitude+altura1*normalizaNivel(df2$seguridad,df2$ajuste,df2$desborde),
                             popup=contenido)
             
             mapa <- mapa %>% 
@@ -213,10 +214,10 @@ shinyServer(function(input, output,session){
                             weight=0.5,
                             color="black",
                             opacity=1,
-                            lng1=df$longitude-grosor1,
-                            lat1=df$latitude+altura1*normalizaNivel(df$observacion,df$ajuste,df$desborde),
-                            lng2=df$longitude+grosor1,
-                            lat2=df$latitude+altura1*normalizaNivel(df$observacion,df$ajuste,df$desborde),
+                            lng1=df2$longitude-grosor1,
+                            lat1=df2$latitude+altura1*normalizaNivel(df2$observacion,df2$ajuste,df2$desborde),
+                            lng2=df2$longitude+grosor1,
+                            lat2=df2$latitude+altura1*normalizaNivel(df2$observacion,df2$ajuste,df2$desborde),
                             popup=contenido)
             
           
@@ -225,10 +226,10 @@ shinyServer(function(input, output,session){
                             weight=0.5,
                             color="black",
                             opacity=1,
-                            lng1=df$longitude-grosor1,
-                            lat1=df$latitude+altura1*normalizaNivel(df$ajuste,df$control,df$desborde),
-                            lng2=df$longitude+grosor1,
-                            lat2=df$latitude+altura1*normalizaNivel(df$ajuste,df$control,df$desborde),
+                            lng1=df2$longitude-grosor1,
+                            lat1=df2$latitude+altura1*normalizaNivel(df2$ajuste,df2$control,df2$desborde),
+                            lng2=df2$longitude+grosor1,
+                            lat2=df2$latitude+altura1*normalizaNivel(df2$ajuste,df2$control,df2$desborde),
                             popup=contenido)
         }
         
@@ -253,11 +254,11 @@ shinyServer(function(input, output,session){
         
         mapa <- mapa %>%
           addCircles(fill=TRUE,
-                     color=df$micolor,
+                     color=df2$micolor,
                      stroke=FALSE,
                      weight=1,
-                     fillOpacity=df$miopacidad,
-                     opacity=df$miopacidad,
+                     fillOpacity=df2$miopacidad,
+                     opacity=df2$miopacidad,
                      radius=mysize*nivel.norm,
                      popup = contenido)
         
@@ -270,7 +271,7 @@ shinyServer(function(input, output,session){
                      stroke=TRUE,
                      weight=0.5,
                      opacity=1,
-                     radius=mysize*normalizaNivel(df$seguridad,df$ajuste,df$desborde),
+                     radius=mysize*normalizaNivel(df2$seguridad,df2$ajuste,df2$desborde),
                      popup = contenido,
                      options = markerOptions(riseOnHover = TRUE))
           
@@ -280,7 +281,7 @@ shinyServer(function(input, output,session){
                        stroke=TRUE,
                        weight=0.5,
                        opacity=1,
-                       radius=mysize*normalizaNivel(df$observacion,df$ajuste,df$desborde),
+                       radius=mysize*normalizaNivel(df2$observacion,df2$ajuste,df2$desborde),
                        popup = contenido,
                        options = markerOptions(riseOnHover = TRUE))
           
@@ -290,7 +291,7 @@ shinyServer(function(input, output,session){
                        stroke=TRUE,
                        weight=0.5,
                        opacity=1,
-                       radius=mysize*normalizaNivel(df$ajuste,df$ajuste,df$desborde),
+                       radius=mysize*normalizaNivel(df2$ajuste,df2$ajuste,df2$desborde),
                        popup = contenido,
                        options = markerOptions(riseOnHover = TRUE))
           
@@ -300,10 +301,10 @@ shinyServer(function(input, output,session){
       
       
 
-       mapa <- mapa  %>% addMarkers(lng=df$longitude,
-                                    lat=df$latitude + 0.028,
+       mapa <- mapa  %>% addMarkers(lng=df2$longitude,
+                                    lat=df2$latitude + 0.028,
                                     icon=miIcono,
-                                    layerId=df$nombre)       
+                                    layerId=df2$nombre)       
       
        mapa <- mapa %>%  addLegend(position = 'topright',
                           colors = codigo.colores,
