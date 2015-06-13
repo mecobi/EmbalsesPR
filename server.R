@@ -6,6 +6,8 @@ library(lubridate)
 
 source("utilities.R")
 
+# utilizar archivo local en caso de que no halla coneccion al internet 
+
 offline <- FALSE
 
 ################################################
