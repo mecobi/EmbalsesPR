@@ -1,25 +1,42 @@
+#################################################
+# server.R - rutina a nivel del servidor de shiny 
+# Elio Ramos 
+# CienciaDatosPR
+# Departamento de Matemática 
+# Universidad de Puerto Rico en Humacao 
+#################################################
 
-library(shiny)
-library(leaflet)
-library(lubridate) 
+library(shiny)          # interfaz gráfica en línea con R 
+library(leaflet)        # para hacer mapa interactivo
+library(lubridate)      # funciones utiles para manejo de fechas 
+
+
+## llamar rutinas utiles 
 
 source("utilities.R")
 
-# utilizar archivo local para el caso de que no halla coneccion al internet 
-
-offline <- FALSE
-
-# codigos de colores
+#############################
+# código de colores según AAA
+#############################
 
 etiqueta <- c("seguridad","observación","ajuste","control")
 colores <-  c("darkorange","yellow","blue","darkgreen")
 codigo.colores <- rgb(t(col2rgb(rev(colores)))/ 255)
 
-# coordenadas base del mapa y el correspondiente zoom 
+#####################################################################
+# coordenadas (lon,lat) del centro del mapa y el correspondiente zoom
+#####################################################################
 
-x0 <- -66.5
+x0 <- -66.5   
 y0 <-  18.25
 z0 <- 10  
+
+##################################
+# iconos de flechas para tendencia 
+##################################
+
+flecha_arriba <- "http://png-2.findicons.com/files/icons/2338/reflection/128/arrow_up_1.png"
+flecha_abajo  <- "http://png-2.findicons.com/files/icons/2338/reflection/128/arrow_down_1.png"
 
 
 ################################################
@@ -95,6 +112,9 @@ extiende.df <- function(df)
   return(df)
 }
 
+########################################
+## rutina principal a nivel del servidor
+########################################
 
 shinyServer(function(input, output,session){
   
@@ -116,54 +136,43 @@ shinyServer(function(input, output,session){
     {
       
         withProgress(message = 'Buscando en USGS', 
-                   value=0,{
-                     if(offline)
-                     {
-                       load("df.RData")
-                     }else
-                     {
-                       df2 <<- extiende.df(df)
-                     }
-                     incProgress(1.0)})  
+                     value=0,{
+                     df2 <<- extiende.df(df)   
+                    incProgress(1.0)})  
+  
+        nivel.norm <- normalizaNivel(df2$nivel,df2$ajuste,df2$desborde)
+        
+        miIcono <<- icons(
+          iconUrl = ifelse(df2$tendencia >= 0, flecha_arriba, flecha_abajo),
+          iconWidth = 15, iconHeight = 15,
+          iconAnchorX = 7.5, iconAnchorY = 15,
+        )
       
-      nivel.norm <- normalizaNivel(df2$nivel,df2$ajuste,df2$desborde)
-      
-      miIcono <<- icons(
-        iconUrl = ifelse(df2$tendencia >= 0,
-                         "http://png-2.findicons.com/files/icons/2338/reflection/128/arrow_up_1.png", 
-                         "http://png-2.findicons.com/files/icons/2338/reflection/128/arrow_down_1.png"),
-        iconWidth = 15, iconHeight = 15,
-        iconAnchorX = 7.5, iconAnchorY = 15,
-      )
-      
-      withProgress(message= 'Generando MAPA',
+        withProgress(message= 'Generando MAPA',
                    value=0,{
       
-      incProgress(0.33)        
+        incProgress(0.33)        
       
-      mapa <- leaflet(df2) %>% 
+        mapa <- leaflet(df2) %>% 
         addTiles("http://{s}.tile.opencyclemap.org/cycle/{z}/{x}/{y}.png",
-                 attribution="CienciaDatosPR-Matemáticas-UPR-Humacao",
+                 attribution="opencyclemap/CienciaDatosPR/Matemáticas/UPR-Humacao",
                  options=tileOptions(detectRetina=TRUE))      %>%
         setView(x0,y0,z0) 
       
-      incProgress(0.33)
+        incProgress(0.33)
       
-      nombre.embalse <- toupper(df2$nombre)
+        nombre.embalse <- toupper(df2$nombre)
       
-      contenido <- paste("<B><font color='blue'>",toupper(df2$nombre),"</font></B>","<BR/>",
+        contenido <<- paste("<B><font color='blue'>",toupper(df2$nombre),"</font></B>","<BR/>",
                    "<font color='blue'><B>Nivel:</B></font>",
                    sprintf("%3.2f",df2$nivel)," m","<BR/>",
-                   #df2$tendencia," m/hora","<BR/>",
                    "<B><font color='blue'>Fecha:</B></font>",df2$mifecha)
       
-      grosor1 <- 0.005
-      altura1 <- 0.028
+        grosor1 <<- 0.005
+        altura1 <<- 0.028
       
-      if(input$estilo == "Rectángulos")
-      {
-        
-        # rectangulo de nivel maximo 
+
+        # rectangulo de NIVEL MAXIMO 
         
         mapa <- mapa %>% 
           addRectangles(fill=TRUE,
@@ -176,9 +185,9 @@ shinyServer(function(input, output,session){
                         lat2=df2$latitude+altura1,
                         popup=contenido)
       
-        grosor2 <- 0.005
+        grosor2 <<- 0.005
         
-        # rectangulo de color con nivel actual 
+        # rectangulo de color con NIVEL ACTUAL 
         
         mapa <- mapa %>% 
           addRectangles(fill=TRUE,
@@ -194,124 +203,72 @@ shinyServer(function(input, output,session){
                         lat2=df2$latitude+ (altura1)*nivel.norm,
                         popup=contenido)
         
-        # escala
+        # incluir escala con nivel 
         
-        if(input$escala)
-        {
-            mapa <- mapa %>% 
-              addRectangles(fill=FALSE,
-                            weight=0.5,
-                            color="black",
-                            opacity=1,
-                            lng1=df2$longitude-grosor1,
-                            lat1=df2$latitude+altura1*normalizaNivel(df2$seguridad,df2$ajuste,df2$desborde),
-                            lng2=df2$longitude+grosor1,
-                            lat2=df2$latitude+altura1*normalizaNivel(df2$seguridad,df2$ajuste,df2$desborde),
-                            popup=contenido)
-            
-            mapa <- mapa %>% 
-              addRectangles(fill=FALSE,
-                            weight=0.5,
-                            color="black",
-                            opacity=1,
-                            lng1=df2$longitude-grosor1,
-                            lat1=df2$latitude+altura1*normalizaNivel(df2$observacion,df2$ajuste,df2$desborde),
-                            lng2=df2$longitude+grosor1,
-                            lat2=df2$latitude+altura1*normalizaNivel(df2$observacion,df2$ajuste,df2$desborde),
-                            popup=contenido)
-            
+          mapa <- mapa %>% 
+            addRectangles(fill=FALSE,
+                          group="escala",
+                          weight=0.5,
+                          color="black",
+                          opacity=1,
+                          lng1=df2$longitude-grosor1,
+                          lat1=df2$latitude+altura1*normalizaNivel(df2$seguridad,df2$ajuste,df2$desborde),
+                          lng2=df2$longitude+grosor1,
+                          lat2=df2$latitude+altura1*normalizaNivel(df2$seguridad,df2$ajuste,df2$desborde),
+                          popup=contenido)
           
-            mapa <- mapa %>% 
-              addRectangles(fill=FALSE,
-                            weight=0.5,
-                            color="black",
-                            opacity=1,
-                            lng1=df2$longitude-grosor1,
-                            lat1=df2$latitude+altura1*normalizaNivel(df2$ajuste,df2$control,df2$desborde),
-                            lng2=df2$longitude+grosor1,
-                            lat2=df2$latitude+altura1*normalizaNivel(df2$ajuste,df2$control,df2$desborde),
-                            popup=contenido)
-        }
+          mapa <- mapa %>% 
+            addRectangles(fill=FALSE,
+                          group="escala",
+                          weight=0.5,
+                          color="black",
+                          opacity=1,
+                          lng1=df2$longitude-grosor1,
+                          lat1=df2$latitude+altura1*normalizaNivel(df2$observacion,df2$ajuste,df2$desborde),
+                          lng2=df2$longitude+grosor1,
+                          lat2=df2$latitude+altura1*normalizaNivel(df2$observacion,df2$ajuste,df2$desborde),
+                          popup=contenido)
+          
         
-        incProgress(0.33)
+          mapa <- mapa %>% 
+            addRectangles(fill=FALSE,
+                          group="escala",
+                          weight=0.5,
+                          color="black",
+                          opacity=1,
+                          lng1=df2$longitude-grosor1,
+                          lat1=df2$latitude+altura1*normalizaNivel(df2$ajuste,df2$control,df2$desborde),
+                          lng2=df2$longitude+grosor1,
+                          lat2=df2$latitude+altura1*normalizaNivel(df2$ajuste,df2$control,df2$desborde),
+                          popup=contenido)
+        
+        
+       incProgress(0.33)
       
-      }
       
-      if(input$estilo == "Círculos")
-      {
-      
-        mapa <- mapa %>%
-          addCircles(fill=TRUE,
-                     color="black",
-                     stroke=TRUE,
-                     weight=1,
-                     opacity=1,
-                     radius=mysize,
-                     popup = contenido,
-                     options = markerOptions(riseOnHover = TRUE))
-        
-        incProgress(0.33)
-        
-        mapa <- mapa %>%
-          addCircles(fill=TRUE,
-                     color=df2$micolor,
-                     stroke=FALSE,
-                     weight=1,
-                     fillOpacity=df2$miopacidad,
-                     opacity=df2$miopacidad,
-                     radius=mysize*nivel.norm,
-                     popup = contenido)
-        
-        if(input$escala)
-        {
+       # inclur flecha de tendencia 
 
-          mapa <- mapa %>% 
-            addCircles(fill=FALSE,
-                     color="black",
-                     stroke=TRUE,
-                     weight=0.5,
-                     opacity=1,
-                     radius=mysize*normalizaNivel(df2$seguridad,df2$ajuste,df2$desborde),
-                     popup = contenido,
-                     options = markerOptions(riseOnHover = TRUE))
-          
-          mapa <- mapa %>% 
-            addCircles(fill=FALSE,
-                       color="black",
-                       stroke=TRUE,
-                       weight=0.5,
-                       opacity=1,
-                       radius=mysize*normalizaNivel(df2$observacion,df2$ajuste,df2$desborde),
-                       popup = contenido,
-                       options = markerOptions(riseOnHover = TRUE))
-          
-          mapa <- mapa %>% 
-            addCircles(fill=FALSE,
-                       color="black",
-                       stroke=TRUE,
-                       weight=0.5,
-                       opacity=1,
-                       radius=mysize*normalizaNivel(df2$ajuste,df2$ajuste,df2$desborde),
-                       popup = contenido,
-                       options = markerOptions(riseOnHover = TRUE))
-          
-        }
-        
-      }
-      
-      
-
-       mapa <- mapa  %>% addMarkers(lng=df2$longitude,
+       mapa <- mapa  %>% addMarkers(group="tendencia", 
+                                    lng=df2$longitude,
                                     lat=df2$latitude + 0.028,
                                     icon=miIcono,
                                     layerId=df2$nombre)       
       
-       mapa <- mapa %>%  addLegend(position = 'topright',
+       # incluir leyenda 
+       
+       mapa <- mapa %>%  addLegend(position = 'topright',  
                           colors = codigo.colores,
                           labels = etiqueta, 
                           opacity = 1,
                           title = 'Estado del embalse',
                           layerId="leyenda") 
+      
+       # incluir fecha de ultima peticion 
+       
+      mapa <- mapa %>% addControl(position='bottomleft',
+                                  html=paste0("Última actualizacion: <font color='blue'>",
+                                              genera_fecha(Sys.time()),"</font"))
+      
       
       print(mapa)
       
@@ -319,65 +276,39 @@ shinyServer(function(input, output,session){
       
     }
     
-  })
+})
 
-#################################################################
-## definir evento para cuando el mouse se coloca sobre el embalse
-#################################################################
 
-# observeEvent(input$mapa_shape_mouseover,{
-#   proxy <- leafletProxy("mapa",session)
-#   mimouse <- input$mapa_shape_mouseover
-#   x <- mimouse$lng
-#   y <- mimouse$lat
-#   inx.nombre <- df$nombre == mimouse$id
-#   contenido <- paste("<B><font color='blue'>",toupper(mimouse$id),"</font></B>","<BR/>",
-#                      "<font color='blue'><B>Nivel:</B></font>",
-#                      sprintf("%3.2f",df$nivel[inx.nombre])," m","<BR/>",
-#                      "<B><font color='blue'>Fecha:</B></font>",df$mifecha[inx.nombre])
-#   proxy %>% addPopups(lng=x,lat=y,
-#                       options=popupOptions(closeOnClick=TRUE),
-#                       layerId=mimouse$id,
-#                       popup=contenido)
-#   
-# })
-  
 
-############################################################
-# definir evento para añadir o quitar la flecha de tendencia
-############################################################
+##################################################################################
+#definir evento para añadir o quitar la flecha de tendencia sin tener que recargar
+##################################################################################
 
 observeEvent(input$tendencia,{
-    miIcono <<- icons(
-    iconUrl = ifelse(df$tendencia >= 0,
-                     "http://png-2.findicons.com/files/icons/2338/reflection/128/arrow_up_1.png", 
-                     "http://png-2.findicons.com/files/icons/2338/reflection/128/arrow_down_1.png"),
-    iconWidth = 15, iconHeight = 15,
-    iconAnchorX = 7.5, iconAnchorY = 15,
-    )
-    proxy <- leafletProxy("mapa",session)
-    z0 <- input$mapa_zoom
-    if(input$tendencia)
+    if(input$buscaDatos)
     {
-      proxy %>% addMarkers(lng=df$longitude,
-                 lat=df$latitude + 0.028,
-                 icon=miIcono) %>% 
-                 setView(x0,y0,zoom=z0)
-    }else
-    {
-      proxy %>% clearMarkers() %>%
-                setView(x0,y0,zoom=z0)
+        proxy <- leafletProxy("mapa",session)
+        if(input$tendencia)
+        {
+          proxy %>% showGroup("tendencia")
+        }else
+        { 
+          proxy %>% hideGroup("tendencia")
+        }
     }
   })
 
 
-################################################
-# definir evento para añadir o quitar la leyenda
-################################################
+#######################################################################
+# definir evento para añadir o quitar la leyenda sin tener que recargar 
+#######################################################################
 
 observeEvent(input$leyenda,{
   proxy <- leafletProxy("mapa",session)
   z0 <- input$mapa_zoom
+  lim <- input$mapa_bounds
+  x0 <- (lim$east + lim$west)/2.0
+  y0 <- (lim$north + lim$south)/2.0
   if(input$leyenda)
   { 
     proxy %>% addLegend(position = 'topright',
@@ -390,36 +321,30 @@ observeEvent(input$leyenda,{
     
   }else
   {
-    proxy %>% removeControl(layerId="leyenda") %>% setView(x0,y0,zoom=z0)
+
+   proxy %>% removeControl(layerId="leyenda") %>% setView(x0,y0,zoom=z0)
+  }
+})
+ 
+
+#############################################################################
+#definir evento para añadir o quitar escala de niveles sin tener que recargar 
+#############################################################################
+
+observeEvent(input$escala,{
+  if(input$buscaDatos)
+  {
+    proxy <- leafletProxy("mapa",session)
+    if(input$escala)
+    {      
+       proxy %>% showGroup("escala")    
+    }else
+    {
+       proxy %>% hideGroup("escala")
+    }
   }
 })
 
-  
-###############################################
-# definir evento para añadir o quitar la escala 
-###############################################
-
-# observeEvent(input$escala,{
-# 
-#   proxy <- leafletProxy("mapa",session)
-#   z0 <- input$mapa_zoom
-#   
-#   if(input$escala && input$estilo == 'Círculos')
-#   {
-#     proxy %>%             
-#       addCircles(lng=df$longitude,lat=df$latitude,fill=FALSE,
-#          color="black",
-#          stroke=TRUE,
-#          weight=0.5,
-#          opacity=1,
-#          radius=mysize*normalizaNivel(df$seguridad,df$ajuste,df$desborde),
-#          options = markerOptions(riseOnHover = TRUE)) %>%
-#      setView(x0,y0,zoom=z0)
-#   }else
-#   {
-#     proxy %>% clearMarkers() %>%
-#       setView(x0,y0,zoom=z0)
-#   }
-# })
-
 })
+
+

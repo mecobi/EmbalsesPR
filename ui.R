@@ -1,16 +1,21 @@
+##############################################
+# ui.R - interfaz con el usuario de embalsespr
+# Elio Ramos 
+# CienciaDatosPR
+# Departamento de Matemática 
+# Universidad de Puerto Rico en Humacao 
+##############################################
 
-###############################
-# User interface for EmbalsesPR
-###############################
+library(shiny)          # interfaz gráfica en línea con R 
+library(leaflet)        # para hacer mapa interactivo
+library(lubridate)      # funciones utiles para manejo de fechas 
+library(shinythemes)    # para escojer estilo de la interfaz
 
-library(shiny)
-library(leaflet)
-library(lubridate)
-library(shinythemes)
 
 cadena1 <- "<p align='justify'>Una aplicación para <font color='blue'>buscar</font> y 
             <font color='blue'>visualizar</font> el estado actual de 
-            los 11 embalses en Puerto Rico. Dependiendo del tráfico en el servidor (y los 
+            los 11 embalses en Puerto Rico utilizando datos del Servicio Geológico de los Estados Unidos 
+            (USGS por sus siglas en inglés). Dependiendo del tráfico en el servidor (y los 
             instrumentos del USGS) el tiempo de búsqueda puede variar. Según USGS los datos 
             tienen estado provisional y podrian variar luego de una revisión. De ser necesario 
             recarge la página.</p>"
@@ -18,53 +23,60 @@ cadena1 <- "<p align='justify'>Una aplicación para <font color='blue'>buscar</f
 cadena2a <- "<p align='justify'>La <font color='blue'> <b>altura </b> </font> de los rectángulos 
             de color es proporcional al <font color='blue'><b>nivel del embalse</b></font> 
             y la flecha indica la   <font color='blue'><b>tendencia del nivel </b></font> en 
-            las últimas horas. Puede oprimir en los rectángulos para obtener mas información.</p>"
+            las últimas horas. Puede oprimir en los rectángulos para obtener mas información.
+            El código de colores y los niveles de alerta están basados en la página
+            <font color='blue'>http://acueductospr.com/AAARepresas/tabla.</font></p>"
 
 cadena2b <- "<p align='justify'>El <font color='blue'> <b>radio</b> </font> de los círculos 
             de color es proporcional al <font color='blue'><b>nivel del embalse</b></font> 
             y la flecha indica la   <font color='blue'><b>tendencia del nivel </b></font> en 
             las últimas horas. Puede oprimir en los círculos para obtener mas información.</p>"
 
-cadena3 <- "<p align='justify'> <font color='Maroon'>embalsesPR</font> es un proyecto del grupo 
+cadena3 <- "<p align='left'> <font color='Maroon'>embalsesPR</font> es un proyecto del grupo 
            <font color='blue'>CienciaDatosPR</font> del <font color='blue'>Departamento de 
            Matemáticas</font> de la <font color='Maroon'> Universidad de Puerto Rico en Humacao
-           </font>.</p>"
+           </font>. Pueden enviar sus preguntas, comentarios, o sugerencias 
+           a: <a href='mailto:cienciadatospr.uprh.edu'>cienciadatospr@mate.uprh.edu</a></p>"
+
+licencia <- "<a rel='license' href='http://creativecommons.org/licenses/by-nc-sa/4.0/'>
+            <img alt='Licencia Creative Commons' style='border-width:0' src=
+            'https://i.creativecommons.org/l/by-nc-sa/4.0/80x15.png' /></a><br />
+            <span xmlns:dct='http://purl.org/dc/terms/' property='dct:title'>EmbalsesPR
+            </span> por <a xmlns:cc='http://creativecommons.org/ns#' href='mate.uprh.edu' 
+            property='cc:attributionName' rel='cc:attributionURL'>CienciaDatosPR/
+            Matemáticas/UPR-Humacao</a> se distribuye bajo una <a rel='license' 
+            href='http://creativecommons.org/licenses/by-nc-sa/4.0/'>Licencia Creative 
+            Commons Atribución-NoComercial-CompartirIgual 4.0 Internacional</a>."
+
 
 shinyUI(fluidPage(theme = shinytheme("cosmo"),
-  #titlePanel("EmbalsesPR.",windowTitle="EmbalsesPR"),
+  titlePanel("",windowTitle="EmbalsesPR"),
   h1("embalsesPR",align="left",style = "color:Maroon"),
   sidebarLayout(
-    sidebarPanel( 
-     
+  sidebarPanel( 
+    
       HTML(cadena1),
-     
-     actionButton("buscaDatos","Buscar datos..",icon=icon("search")),
-     
-     br(),
-     br(),
-     selectInput(inputId = "estilo",
-                 label = "Representacion de los embalses",
-                 choices = c("Rectángulos",
-                             "Círculos"),
-                 selected = "Rectángulos"),
-     
-     checkboxInput(inputId = "tendencia",
+      actionButton("buscaDatos","Buscar datos..",icon=icon("search")),
+      br(),
+      br(),
+      checkboxInput(inputId = "tendencia",
                    label = "Mostrar flecha de tendencia",
                    value = TRUE),
-     checkboxInput(inputId = "escala",
+      checkboxInput(inputId = "escala",
                    label = "Mostrar escala",
-                   value = FALSE),
-     checkboxInput(inputId = "leyenda",
+                   value = TRUE),
+      checkboxInput(inputId = "leyenda",
                    label = "Mostrar leyenda",
                    value = TRUE),
+      br(),
      
-     br(),
-     
-     conditionalPanel(condition = "input.buscaDatos == true && input.estilo == 'Rectángulos'",HTML(cadena2a)),
-     conditionalPanel(condition = "input.buscaDatos == true && input.estilo == 'Círculos'",HTML(cadena2b)),
-     
-     HTML(cadena3)),
-    
+      conditionalPanel(condition = "input.buscaDatos == true",HTML(cadena2a)),
+      
+      HTML(cadena3),
+      
+      HTML(licencia)
+
+    ),
   mainPanel(
     leafletOutput("mapa",width="100%",height=580)
   ))))
