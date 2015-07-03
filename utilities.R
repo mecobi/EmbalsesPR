@@ -2,7 +2,7 @@
 # utilities.R - rutinas utiles para embalsespr
 # Elio Ramos 
 # CienciaDatosPR
-# Departamento de Matemática 
+# Departamento de Matematica 
 # Universidad de Puerto Rico en Humacao 
 ##############################################
 
@@ -60,8 +60,46 @@ buscaNiveles <- function(misiteID,startDate=fecha1,endDate=fecha2)
   {
   names(datos) <- c("agency","site","datetime","codigo","nivel","status")
   fecha.tiempo <- datos$datetime[-1]
+  #print(paste0(hour(fecha.tiempo),":",minute(fecha.tiempo)))
   nivel.tiempo <- convierteNumerico(datos$nivel[-1])
   tendencia <- mean(diff(nivel.tiempo))
+  desviacion.estandar <- sd(nivel.tiempo)
+  titulo <- paste0("Nivel de embalse ",toupper(minombre),"\n desde las 12 de la medianoche")
+  par(mar=c(0,0,0,0))
+  # grafica se almacena en archivo .png para luego usarse en el "popup"
+  #png(paste0("./www/",misiteID,".png"),width=4,height=4,units="in",res=72)
+  # grafica con el nivel desde la medianoche hasta el presente
+  if(desviacion.estandar < 1.0e-2)
+  {
+   grafica <- qplot(1:length(fecha.tiempo),nivel.tiempo,geom="line",
+                    xlab="Tiempo",ylab="NIVEL [metros]",
+                    ylim=c(min(nivel.tiempo) - desviacion.estandar,max(nivel.tiempo) + desviacion.estandar))  +
+                    geom_line(colour="red") +
+                    ggtitle(titulo) + 
+                    theme(legend.position="none",
+                          axis.title.x=element_text(size=rel(1)),
+                          axis.title.y=element_text(size=rel(1)),
+                          axis.text.x=element_text(size=rel(1.2)),
+                          axis.text.y=element_text(size=rel(1.2)),
+                          panel.border = element_rect(colour = "black", fill=NA, size=1),
+                          plot.title = element_text(size = rel(1.2), colour = "blue"))
+  }else
+  {
+    grafica <- qplot(1:length(fecha.tiempo),nivel.tiempo,geom="line",
+                     xlab="Tiempo",ylab="NIVEL [metros]",
+                     ylim=c(min(nivel.tiempo) - desviacion.estandar,max(nivel.tiempo) + desviacion.estandar))  +
+                     geom_line(colour="red") +
+                     ggtitle(titulo) + 
+                     theme(legend.position="none",
+                           axis.title.x=element_text(size=rel(1)),
+                           axis.title.y=element_text(size=rel(1)),
+                           axis.text.x=element_text(size=rel(1.2)),
+                           axis.text.y=element_text(size=rel(1.2)),
+                           panel.border = element_rect(colour = "black", fill=NA, size=1),
+                           plot.title = element_text(size = rel(1.2), colour = "blue"))
+  }
+  ggsave(paste0("./www/",misiteID,".png"),width=4,height=4)
+  dev.off()
   df.niveles <- data.frame(fecha=tail(fecha.tiempo,n=1),
                            nivel=tail(nivel.tiempo,n=1),
                            tendencia=tendencia,
