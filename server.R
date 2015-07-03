@@ -2,24 +2,25 @@
 # server.R - rutina a nivel del servidor de shiny 
 # Elio Ramos 
 # CienciaDatosPR
-# Departamento de Matemática 
+# Departamento de Matematica 
 # Universidad de Puerto Rico en Humacao 
 #################################################
 
-library(shiny)          # interfaz gráfica en línea con R 
+library(shiny)          # interfaz grafica en linea con R 
 library(leaflet)        # para hacer mapa interactivo
 library(lubridate)      # funciones utiles para manejo de fechas 
+library(ggplot2)
 
 
 ## llamar rutinas utiles 
 
 source("utilities.R")
 
-#############################
-# código de colores según AAA
-#############################
+##############################
+## codigo de colores segun AAA
+##############################
 
-etiqueta <- c("seguridad","observación","ajuste","control")
+etiqueta <- c("seguridad","observaci&oacute;n","ajuste","control")
 colores <-  c("darkorange","yellow","blue","darkgreen")
 codigo.colores <- rgb(t(col2rgb(rev(colores)))/ 255)
 
@@ -46,7 +47,7 @@ flecha_abajo  <- "http://png-2.findicons.com/files/icons/2338/reflection/128/arr
 genera_fecha <- function(hoyes)
 {
   #hoyes <- Sys.time() 
-  semana <- c("Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sabado")
+  semana <- c("Domingo","Lunes","Martes","Mi&eacute;rcoles","Jueves","Viernes","Sabado")
   meses  <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto",
               "Septiembre","Octubre","Noviembre","Diciembre")
   dia1  <- semana[wday(hoyes)]
@@ -76,7 +77,7 @@ genera_fecha <- function(hoyes)
 
 
 #####################################################################################################
-## funciion para añadirle fecha, nivel, color, y opacidad al data frame con los datos de los embalses
+## funciion para anadirle fecha, nivel, color, y opacidad al data frame con los datos de los embalses
 #####################################################################################################
 
 extiende.df <- function(df)
@@ -123,15 +124,16 @@ shinyServer(function(input, output,session){
     if(input$buscaDatos)
     {
     div(style = "margin: 10px;color:black;width: 800px;text-align: justify;font-size:16px;",
-        HTML(paste("El <font color='blue'> <b>radio</b> </font> de los círculos de color es proporcional 
+        HTML(paste("El <font color='blue'> <b>radio</b> </font> de los c&iacute;rculos de color es proporcional 
                 al <font color='blue'><b>nivel del embalse</b></font> y la flecha indica la  
-                <font color='blue'><b>tendencia del nivel </b></font> en las últimas horas")))
+                <font color='blue'><b>tendencia del nivel </b></font> en las &uacute;ltimas horas")))
     }
   })
   
   
   output$mapa <- renderLeaflet({
-    
+
+      
     if(input$buscaDatos)
     {
       
@@ -145,7 +147,7 @@ shinyServer(function(input, output,session){
         miIcono <<- icons(
           iconUrl = ifelse(df2$tendencia >= 0, flecha_arriba, flecha_abajo),
           iconWidth = 15, iconHeight = 15,
-          iconAnchorX = 7.5, iconAnchorY = 15,
+          iconAnchorX = 7.5, iconAnchorY = 15
         )
       
         withProgress(message= 'Generando MAPA',
@@ -155,7 +157,7 @@ shinyServer(function(input, output,session){
       
         mapa <- leaflet(df2) %>% 
         addTiles("http://{s}.tile.opencyclemap.org/cycle/{z}/{x}/{y}.png",
-                 attribution="opencyclemap/CienciaDatosPR/Matemáticas/UPR-Humacao",
+                 attribution="opencyclemap/CienciaDatosPR/Matem&aacute;ticas/UPR-Humacao",
                  options=tileOptions(detectRetina=TRUE))      %>%
         setView(x0,y0,z0) 
       
@@ -163,15 +165,20 @@ shinyServer(function(input, output,session){
       
         nombre.embalse <- toupper(df2$nombre)
       
-        contenido <<- paste("<B><font color='blue'>",toupper(df2$nombre),"</font></B>","<BR/>",
-                   "<font color='blue'><B>Nivel:</B></font>",
-                   sprintf("%3.2f",df2$nivel)," m","<BR/>",
-                   "<B><font color='blue'>Fecha:</B></font>",df2$mifecha)
+        imagenes <- paste0(df2$siteID,".png")
       
+        contenido <<- paste0("<B><font color='blue'>",toupper(df2$nombre),"</font></B>","<BR/>",
+                   "<font color='blue'><B>Nivel: </B></font>",
+                   sprintf("%3.2f",df2$nivel)," m","<BR/>",
+                   "<B><font color='blue'>Fecha: </B></font>",df2$mifecha,
+                   #"<BR> <font color='blue'>Gr&aacute;fica del nivel desde las 12 de la medianoche...</font>",
+                   "<p align='center'><img src='",imagenes,"' height='250' width='250' border='0' </p>")
+    
+        # grosor y altura de los rectangulos 
+          
         grosor1 <<- 0.005
         altura1 <<- 0.028
-      
-
+    
         # rectangulo de NIVEL MAXIMO 
         
         mapa <- mapa %>% 
@@ -266,14 +273,26 @@ shinyServer(function(input, output,session){
        # incluir fecha de ultima peticion 
        
       mapa <- mapa %>% addControl(position='bottomleft',
-                                  html=paste0("Última actualizacion: <font color='blue'>",
+                                  html=paste0("&Uacute;ltima actualizaci&oacute;n: <font color='blue'>",
                                               genera_fecha(Sys.time()),"</font"))
       
       
       print(mapa)
-      
+
       })
       
+    }else
+    {
+      mapa <- leaflet() %>%  addTiles("http://{s}.tile.opencyclemap.org/cycle/{z}/{x}/{y}.png",
+                             attribution="opencyclemap/CienciaDatosPR/Matem&aacute;ticas/UPR-Humacao",
+                             options=tileOptions(detectRetina=TRUE)) %>% setView(x0,y0,z0) 
+    
+      mapa <- mapa %>% addControl(position='bottomleft',
+                                  html="<font color='blue'>NO se ha realizado b&uacute;squeda</font>")
+      
+      mapa <- mapa  %>% removeControl(layerId="leyenda") %>% setView(x0,y0,zoom=z0)
+      
+      print(mapa)
     }
     
 })
@@ -281,7 +300,7 @@ shinyServer(function(input, output,session){
 
 
 ##################################################################################
-#definir evento para añadir o quitar la flecha de tendencia sin tener que recargar
+#definir evento para anadir o quitar la flecha de tendencia sin tener que recargar
 ##################################################################################
 
 observeEvent(input$tendencia,{
@@ -300,7 +319,7 @@ observeEvent(input$tendencia,{
 
 
 #######################################################################
-# definir evento para añadir o quitar la leyenda sin tener que recargar 
+# definir evento para anadir o quitar la leyenda sin tener que recargar 
 #######################################################################
 
 observeEvent(input$leyenda,{
@@ -309,7 +328,7 @@ observeEvent(input$leyenda,{
   lim <- input$mapa_bounds
   x0 <- (lim$east + lim$west)/2.0
   y0 <- (lim$north + lim$south)/2.0
-  if(input$leyenda)
+  if(input$leyenda & input$buscaDatos)
   { 
     proxy %>% addLegend(position = 'topright',
                         colors = codigo.colores,
@@ -328,7 +347,7 @@ observeEvent(input$leyenda,{
  
 
 #############################################################################
-#definir evento para añadir o quitar escala de niveles sin tener que recargar 
+#definir evento para anadir o quitar escala de niveles sin tener que recargar 
 #############################################################################
 
 observeEvent(input$escala,{
