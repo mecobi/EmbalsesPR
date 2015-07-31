@@ -12,7 +12,7 @@
 # los otras medidad se utilizan para calcular la tendencia. 
 
 fecha1 <- Sys.Date()
-fecha2 <- Sys.Date()
+fecha2 <- Sys.Date() 
 
 
 # tamaño base de los rectángulos 
@@ -44,6 +44,43 @@ convierteNumerico <- function(vector)
   return(as.numeric(as.character(vector)))
 }
 
+#####################################################################################
+# funcion para generar los "breaks" de tiempos con AM/PM en el eje de x de la grafica
+#####################################################################################
+
+genera_break <- function(x)
+{
+  x.temp <- x 
+  dx     <- 4
+  if(length(x) > 5)
+  {
+    inx <- seq(1,length(x),round(length(x)/dx))
+  }else
+  {
+    inx <- seq(1,length(x))
+  }
+  am <- rep("AM",length(x))
+  am[which(x >= 12)] <- "PM"
+  x[which(x > 12)] <- x[which(x > 12)] - 12
+  x.m <- paste(floor(x), sprintf("%02d",round((x-floor(x))*60)), sep=":")
+  res <- gsub("^0:","12:",paste0(x.m,am))
+  return(data.frame(breaks24=x.temp[inx],breaks12=res[inx]))
+  
+}
+
+#####################################################################
+# funcion para generar el url que se necesita en portal del USGS para 
+# una cierta fecha y codigo de la estacion 
+#####################################################################
+
+generaURL <- function(startDate,endDate,misiteID)
+{
+  url.parte1 <- "http://nwis.waterdata.usgs.gov/pr/nwis/uv/?cb_62616=on&format=rdb&site_no="
+  url.parte2 <- paste0(misiteID,"&period=&begin_date=",startDate,"&end_date=",endDate)
+  url.final <- paste0(url.parte1,url.parte2)
+  return(url.final)
+}
+
 ############################################
 # funcion para buscar datos de nivel en USGS
 ############################################
@@ -52,64 +89,82 @@ buscaNiveles <- function(misiteID,startDate=fecha1,endDate=fecha2)
 {
   minombre <- df$nombre[df$siteID == misiteID]
   incProgress(0.1,detail=toupper(minombre))
-  url.parte1 <- "http://nwis.waterdata.usgs.gov/pr/nwis/uv/?cb_62616=on&format=rdb&site_no="
-  url.parte2 <- paste0(misiteID,"&period=&begin_date=",startDate,"&end_date=",endDate)
-  url.final <- paste0(url.parte1,url.parte2)
+  url.final <- generaURL(startDate,endDate,misiteID)
+  #print(url.final)
   datos <- tryCatch(read.table(url.final,sep="\t",header=TRUE),finally=NULL)
-  if(!is.null(datos) > 0)
+  if(length(datos)==6)
   {
-  names(datos) <- c("agency","site","datetime","codigo","nivel","status")
-  fecha.tiempo <- datos$datetime[-1]
-  #print(paste0(hour(fecha.tiempo),":",minute(fecha.tiempo)))
-  nivel.tiempo <- convierteNumerico(datos$nivel[-1])
-  tendencia <- mean(diff(nivel.tiempo))
-  desviacion.estandar <- sd(nivel.tiempo)
-  titulo <- paste0("Nivel de embalse ",toupper(minombre),"\n desde las 12 de la medianoche")
-  par(mar=c(0,0,0,0))
-  # grafica se almacena en archivo .png para luego usarse en el "popup"
-  #png(paste0("./www/",misiteID,".png"),width=4,height=4,units="in",res=72)
-  # grafica con el nivel desde la medianoche hasta el presente
-  if(desviacion.estandar < 1.0e-2)
-  {
-   grafica <- qplot(1:length(fecha.tiempo),nivel.tiempo,geom="line",
-                    xlab="Tiempo",ylab="NIVEL [metros]",
-                    ylim=c(min(nivel.tiempo) - desviacion.estandar,max(nivel.tiempo) + desviacion.estandar))  +
-                    geom_line(colour="red") +
-                    ggtitle(titulo) + 
-                    theme(legend.position="none",
-                          axis.title.x=element_text(size=rel(1)),
-                          axis.title.y=element_text(size=rel(1)),
-                          axis.text.x=element_text(size=rel(1.2)),
-                          axis.text.y=element_text(size=rel(1.2)),
-                          panel.border = element_rect(colour = "black", fill=NA, size=1),
-                          plot.title = element_text(size = rel(1.2), colour = "blue"))
+    names(datos) <- c("agency","site","datetime","codigo","nivel","status")
+    fecha.tiempo <- datos$datetime[-1]
+    nivel.tiempo <- round(convierteNumerico(datos$nivel[-1]),digits=2)
+    tendencia <- mean(diff(nivel.tiempo))
+    desviacion.estandar <- sd(nivel.tiempo)
+    par(mar=c(0,0,0,0))
+    x.data <- hour(fecha.tiempo) + minute(fecha.tiempo)/60
+    xx <- genera_break(x.data)
+    titulo <- paste0("Nivel de embalse ",toupper(minombre),"\n en las pasadas ",round(max(x.data)-min(x.data))," horas")
+    y.lim1  <- c(min(nivel.tiempo) - 10*desviacion.estandar,max(nivel.tiempo) + 10*desviacion.estandar)
+    y.lim2  <- c(min(nivel.tiempo) - desviacion.estandar,max(nivel.tiempo) + desviacion.estandar)
+    # grafica con el nivel desde la medianoche hasta el presente
+    if(desviacion.estandar < 1.0e-2)
+    {
+     grafica <- qplot(x.data,nivel.tiempo,geom="line",
+                      xlab="Tiempo",ylab="NIVEL [metros]",
+                      ylim=y.lim1) 
+    }else
+    {
+      grafica <- qplot(x.data,nivel.tiempo,geom="line",
+                       xlab="Tiempo",ylab="NIVEL [metros]",
+                       ylim=y.lim2)
+    }
+    
+    grafica <- grafica + scale_x_continuous(breaks=xx$breaks24,labels=paste0(xx$breaks12,xx$am)) + 
+                         geom_line(colour="red") + ggtitle(titulo) +  
+                         theme(legend.position="none",
+                               axis.title.x=element_text(size=rel(1)),
+                               axis.title.y=element_text(size=rel(1)),
+                               axis.text.x=element_text(size=rel(1.2)),
+                               axis.text.y=element_text(size=rel(1.2)),
+                               panel.border = element_rect(colour = "black", fill=NA, size=1),
+                               plot.title = element_text(size = rel(1.2), colour = "blue"))  
+    
+    # grafica se almacena en archivo .png para luego usarse en el "popup
+    ggsave(paste0("./www/",misiteID,".png"),width=4,height=4)
+    dev.off()
+    df.niveles <- data.frame(fecha=tail(fecha.tiempo,n=1),
+                             nivel=tail(nivel.tiempo,n=1),
+                             tendencia=tendencia,
+                             stringsAsFactors = FALSE)
   }else
   {
-    grafica <- qplot(1:length(fecha.tiempo),nivel.tiempo,geom="line",
-                     xlab="Tiempo",ylab="NIVEL [metros]",
-                     ylim=c(min(nivel.tiempo) - desviacion.estandar,max(nivel.tiempo) + desviacion.estandar))  +
-                     geom_line(colour="red") +
-                     ggtitle(titulo) + 
-                     theme(legend.position="none",
-                           axis.title.x=element_text(size=rel(1)),
-                           axis.title.y=element_text(size=rel(1)),
-                           axis.text.x=element_text(size=rel(1.2)),
-                           axis.text.y=element_text(size=rel(1.2)),
-                           panel.border = element_rect(colour = "black", fill=NA, size=1),
-                           plot.title = element_text(size = rel(1.2), colour = "blue"))
+     #df.niveles <- NULL 
+     mihora <- Sys.time()
+     hora.local <- hour(mihora) + minute(mihora)/60
+     x <- seq(0,hora.local,0.25)
+     fecha <- paste(fecha1,paste(floor(x), sprintf("%02d",round((x-floor(x))*60)), sep=":"))
+     nivel <- rep( df$desborde[df$siteID == misiteID]+0.1,length(fecha))
+     grafica <- qplot(x,nivel,geom="line",
+                      xlab="Tiempo",ylab="NIVEL [metros]",
+                      ylim=c(-10,10)) 
+     grafica <- grafica + 
+       geom_line(colour="red") + ggtitle("NO hay datos disponibles") +  
+       theme(legend.position="none",
+             axis.title.x=element_text(size=rel(1)),
+             axis.title.y=element_text(size=rel(1)),
+             axis.text.x=element_text(size=rel(1.2)),
+             axis.text.y=element_text(size=rel(1.2)),
+             panel.border = element_rect(colour = "black", fill=NA, size=1),
+             plot.title = element_text(size = rel(1.2), colour = "blue")) 
+     ggsave(paste0("./www/",misiteID,".png"),width=4,height=4)
+     #dev.off()
+     df.niveles <- data.frame(fecha=tail(fecha,n=1),
+                              nivel=tail(nivel,n=1),
+                              tendencia=-99)
   }
-  ggsave(paste0("./www/",misiteID,".png"),width=4,height=4)
-  dev.off()
-  df.niveles <- data.frame(fecha=tail(fecha.tiempo,n=1),
-                           nivel=tail(nivel.tiempo,n=1),
-                           tendencia=tendencia,
-                           stringsAsFactors = FALSE)
-  }else
-  {
-    df.niveles <- NULL 
-  }
+  #print(df.niveles)
   return(df.niveles)
 }
+
 
 ############################################################################################
 # para leer archivo con los datos de cada uno de los 11 embalses y colocarlo en un dataframe
