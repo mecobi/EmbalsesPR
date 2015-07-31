@@ -15,6 +15,7 @@ library(ggplot2)
 ## llamar rutinas utiles 
 
 source("utilities.R")
+load("datos.racionamiento.RData")
 
 ##############################
 ## codigo de colores segun AAA
@@ -36,8 +37,10 @@ z0 <- 10
 # iconos de flechas para tendencia 
 ##################################
 
-flecha_arriba <- "http://png-2.findicons.com/files/icons/2338/reflection/128/arrow_up_1.png"
-flecha_abajo  <- "http://png-2.findicons.com/files/icons/2338/reflection/128/arrow_down_1.png"
+flecha_arriba <- "./www/arrow_up.png"
+flecha_abajo  <- "./www/arrow_down.png"
+flecha_plana  <- "./www/arrow_right.png"
+calabera      <- "./www/danger5.png"
 
 
 ################################################
@@ -77,21 +80,21 @@ genera_fecha <- function(hoyes)
 
 
 #####################################################################################################
-## funciion para anadirle fecha, nivel, color, y opacidad al data frame con los datos de los embalses
+## funcion para anadirle fecha, nivel, color, y opacidad al data frame con los datos de los embalses
 #####################################################################################################
 
 extiende.df <- function(df)
 {
-  if(length(df$nivel) < 11)
+  ndat <- length(df$nombre)
+  if(length(df$nivel) < ndat)
   {
-  
   temp <- as.data.frame(t(sapply(df$siteID,buscaNiveles)))
   df$fecha <- as.vector(unlist(temp$fecha))
   df$nivel <- as.vector(unlist(temp$nivel))
   df$tendencia <- as.vector(unlist(temp$tendencia))
-  micolor     <- rep(0,11) 
-  miopacidad <- rep(0,11)
-  mifecha <- rep(0,11)
+  micolor     <- rep(0,ndat) 
+  miopacidad <- rep(0,ndat)
+  mifecha <- rep(0,ndat)
   opacidad <- c(1.0,1.0,0.75,0.50)
 
   for(siteInx in 1:length(df$fecha))
@@ -113,6 +116,153 @@ extiende.df <- function(df)
   return(df)
 }
 
+###########################################
+## funcion para mostrar flecha de tendencia
+###########################################
+
+flecha_tendencia <- function(mapa,df2)
+{
+  mapa <- mapa  %>% addMarkers(group="tendencia", 
+                               lng=df2$longitude,
+                               lat=df2$latitude + 0.028,
+                               icon=miIcono,
+                               layerId=df2$nombre)    
+  return(mapa)
+}
+
+###########################################
+## funcion para mostrar leyenda del embalse
+###########################################
+
+leyenda_embalse <- function(mapa)
+{
+  mapa <- mapa %>%  addLegend(position = 'topright',  
+                              colors = codigo.colores,
+                              labels = etiqueta, 
+                              opacity = 1,
+                              title = 'Estado del embalse',
+                              layerId="leyenda") 
+  return(mapa)
+}
+
+###############################################
+## funcion para mostrar rectangulos de embalses
+###############################################
+
+rectangulo_embalse <- function(mapa,df2)
+{
+  grosor1 <<- 0.005
+  altura1 <<- 0.028
+  grosor2 <<- 0.005
+  
+  mapa <- mapa %>% 
+    addRectangles(fill=TRUE,
+                  group="rectangulo",
+                  weight=1,
+                  color="black",
+                  opacity=1,
+                  lng1=df2$longitude-grosor1,
+                  lat1=df2$latitude-altura1,
+                  lng2=df2$longitude+grosor1,
+                  lat2=df2$latitude+altura1,
+                  popup=contenido)
+  
+  # rectangulo de color con NIVEL ACTUAL 
+  
+  mapa <- mapa %>% 
+    addRectangles(fill=TRUE,
+                  group="rectangulo",
+                  fillColor=df2$micolor,
+                  weight=0.5,
+                  color="black",
+                  stroke=FALSE,
+                  fillOpacity=df2$miopacidad,
+                  opacity=df2$miopacidad,
+                  lng1=df2$longitude-grosor2,
+                  lat1=(df2$latitude-altura1),
+                  lng2=df2$longitude+grosor2,
+                  lat2=df2$latitude+ (altura1)*nivel.norm,
+                  popup=contenido)
+  
+  # incluir escala con nivel 
+  
+  mapa <- mapa %>% 
+    addRectangles(fill=FALSE,
+                  group="escala",
+                  weight=0.5,
+                  color="black",
+                  opacity=1,
+                  lng1=df2$longitude-grosor1,
+                  lat1=df2$latitude+altura1*normalizaNivel(df2$seguridad,df2$ajuste,df2$desborde),
+                  lng2=df2$longitude+grosor1,
+                  lat2=df2$latitude+altura1*normalizaNivel(df2$seguridad,df2$ajuste,df2$desborde),
+                  popup=contenido)
+  
+  mapa <- mapa %>% 
+    addRectangles(fill=FALSE,
+                  group="escala",
+                  weight=0.5,
+                  color="black",
+                  opacity=1,
+                  lng1=df2$longitude-grosor1,
+                  lat1=df2$latitude+altura1*normalizaNivel(df2$observacion,df2$ajuste,df2$desborde),
+                  lng2=df2$longitude+grosor1,
+                  lat2=df2$latitude+altura1*normalizaNivel(df2$observacion,df2$ajuste,df2$desborde),
+                  popup=contenido)
+  
+  
+  mapa <- mapa %>% 
+    addRectangles(fill=FALSE,
+                  group="escala",
+                  weight=0.5,
+                  color="black",
+                  opacity=1,
+                  lng1=df2$longitude-grosor1,
+                  lat1=df2$latitude+altura1*normalizaNivel(df2$ajuste,df2$control,df2$desborde),
+                  lng2=df2$longitude+grosor1,
+                  lat2=df2$latitude+altura1*normalizaNivel(df2$ajuste,df2$control,df2$desborde),
+                  popup=contenido)
+  
+  return(mapa)
+  
+}
+
+##############################################
+## funcion para mostrar zonas de racionamiento
+##############################################
+
+zona_racionamiento <- function(mapa,datos.muni,lista.muni,poli)
+{
+
+  for(inx in lista.muni)
+  {
+    
+      mapa <- mapa %>% addPolygons(lng=poli[[inx]]$lng,lat=poli[[inx]]$lat,
+                                   group="poligono",
+                                   weight=1)
+    
+      mapa <- mapa %>% addCircleMarkers(lng=datos.muni[[inx]]$lng,
+                                      lat=datos.muni[[inx]]$lat,
+                                      group="zona",
+                                      fillColor=datos.muni[[inx]]$color,
+                                      color=datos.muni[[inx]]$color,
+                                      popup=paste0(datos.muni[[inx]]$lugar,", ",datos.muni[[inx]]$municipio),
+                                      opacity=0.5,
+                                      weight=1,
+                                      radius=3)
+  }
+  
+  mapa <- mapa %>% addLegend(title="Zona de racionamiento",
+                         layerId="leyenda.racionamiento",
+                         colors=c("red","green"),
+                         opacity=1.0,
+                         position="bottomright",
+                         labels=c("en racionamiento","susceptible"))     
+  return(mapa)
+  
+}
+
+
 ########################################
 ## rutina principal a nivel del servidor
 ########################################
@@ -133,7 +283,6 @@ shinyServer(function(input, output,session){
   
   output$mapa <- renderLeaflet({
 
-      
     if(input$buscaDatos)
     {
       
@@ -142,12 +291,21 @@ shinyServer(function(input, output,session){
                      df2 <<- extiende.df(df)   
                     incProgress(1.0)})  
   
-        nivel.norm <- normalizaNivel(df2$nivel,df2$ajuste,df2$desborde)
+        nivel.norm <<- normalizaNivel(df2$nivel,df2$ajuste,df2$desborde)
+        
+        df2$tendencia <- round(df2$tendencia,digits=3)
+  
+        iconUrl <- rep("",length(df2$tendencia))
+        
+        iconUrl[which(df2$tendencia > 0)]    <- flecha_arriba
+        iconUrl[which(df2$tendencia < 0)]    <- flecha_abajo 
+        iconUrl[which(df2$tendencia == 0)]   <- flecha_plana
+        iconUrl[which(df2$tendencia == -99)] <- calabera
         
         miIcono <<- icons(
-          iconUrl = ifelse(df2$tendencia >= 0, flecha_arriba, flecha_abajo),
-          iconWidth = 15, iconHeight = 15,
-          iconAnchorX = 7.5, iconAnchorY = 15
+          iconUrl = iconUrl,
+          iconWidth = 20, iconHeight = 20,
+          iconAnchorX = 10, iconAnchorY = 25
         )
       
         withProgress(message= 'Generando MAPA',
@@ -167,115 +325,42 @@ shinyServer(function(input, output,session){
       
         imagenes <- paste0(df2$siteID,".png")
       
+        df2$nivel[df2$tendencia <= -99] <- NA
+        
+        unidades <- rep(" m",length(df2$tendencia))
+        
+        unidades[df2$tendencia <= -99] <- ""
+        
         contenido <<- paste0("<B><font color='blue'>",toupper(df2$nombre),"</font></B>","<BR/>",
                    "<font color='blue'><B>Nivel: </B></font>",
-                   sprintf("%3.2f",df2$nivel)," m","<BR/>",
+                   sprintf("%3.2f",df2$nivel),unidades,"<BR/>",
                    "<B><font color='blue'>Fecha: </B></font>",df2$mifecha,
                    #"<BR> <font color='blue'>Gr&aacute;fica del nivel desde las 12 de la medianoche...</font>",
                    "<p align='center'><img src='",imagenes,"' height='250' width='250' border='0' </p>")
     
-        # grosor y altura de los rectangulos 
-          
-        grosor1 <<- 0.005
-        altura1 <<- 0.028
-    
-        # rectangulo de NIVEL MAXIMO 
+       ## SECCION de ZONAS de racionamiento 
         
-        mapa <- mapa %>% 
-          addRectangles(fill=TRUE,
-                        weight=1,
-                        color="black",
-                        opacity=1,
-                        lng1=df2$longitude-grosor1,
-                        lat1=df2$latitude-altura1,
-                        lng2=df2$longitude+grosor1,
-                        lat2=df2$latitude+altura1,
-                        popup=contenido)
-      
-        grosor2 <<- 0.005
-        
-        # rectangulo de color con NIVEL ACTUAL 
-        
-        mapa <- mapa %>% 
-          addRectangles(fill=TRUE,
-                        fillColor=df2$micolor,
-                        weight=0.5,
-                        color="black",
-                        stroke=FALSE,
-                        fillOpacity=df2$miopacidad,
-                        opacity=df2$miopacidad,
-                        lng1=df2$longitude-grosor2,
-                        lat1=(df2$latitude-altura1),
-                        lng2=df2$longitude+grosor2,
-                        lat2=df2$latitude+ (altura1)*nivel.norm,
-                        popup=contenido)
-        
-        # incluir escala con nivel 
-        
-          mapa <- mapa %>% 
-            addRectangles(fill=FALSE,
-                          group="escala",
-                          weight=0.5,
-                          color="black",
-                          opacity=1,
-                          lng1=df2$longitude-grosor1,
-                          lat1=df2$latitude+altura1*normalizaNivel(df2$seguridad,df2$ajuste,df2$desborde),
-                          lng2=df2$longitude+grosor1,
-                          lat2=df2$latitude+altura1*normalizaNivel(df2$seguridad,df2$ajuste,df2$desborde),
-                          popup=contenido)
-          
-          mapa <- mapa %>% 
-            addRectangles(fill=FALSE,
-                          group="escala",
-                          weight=0.5,
-                          color="black",
-                          opacity=1,
-                          lng1=df2$longitude-grosor1,
-                          lat1=df2$latitude+altura1*normalizaNivel(df2$observacion,df2$ajuste,df2$desborde),
-                          lng2=df2$longitude+grosor1,
-                          lat2=df2$latitude+altura1*normalizaNivel(df2$observacion,df2$ajuste,df2$desborde),
-                          popup=contenido)
-          
-        
-          mapa <- mapa %>% 
-            addRectangles(fill=FALSE,
-                          group="escala",
-                          weight=0.5,
-                          color="black",
-                          opacity=1,
-                          lng1=df2$longitude-grosor1,
-                          lat1=df2$latitude+altura1*normalizaNivel(df2$ajuste,df2$control,df2$desborde),
-                          lng2=df2$longitude+grosor1,
-                          lat2=df2$latitude+altura1*normalizaNivel(df2$ajuste,df2$control,df2$desborde),
-                          popup=contenido)
-        
+       mapa <- zona_racionamiento(mapa,datos.muni,lista.muni,poli)
+         
+       ## SECCION de RECTANGULOS 
+                
+       mapa <- rectangulo_embalse(mapa,df2) 
         
        incProgress(0.33)
-      
-      
-       # inclur flecha de tendencia 
-
-       mapa <- mapa  %>% addMarkers(group="tendencia", 
-                                    lng=df2$longitude,
-                                    lat=df2$latitude + 0.028,
-                                    icon=miIcono,
-                                    layerId=df2$nombre)       
+       
+       ## SECCION de FLECHA de tendencia 
+       
+       mapa <- flecha_tendencia(mapa,df2)
       
        # incluir leyenda 
        
-       mapa <- mapa %>%  addLegend(position = 'topright',  
-                          colors = codigo.colores,
-                          labels = etiqueta, 
-                          opacity = 1,
-                          title = 'Estado del embalse',
-                          layerId="leyenda") 
-      
+       mapa <- leyenda_embalse(mapa)
+       
        # incluir fecha de ultima peticion 
        
-      mapa <- mapa %>% addControl(position='bottomleft',
+       mapa <- mapa %>% addControl(position='bottomleft',
                                   html=paste0("&Uacute;ltima actualizaci&oacute;n: <font color='blue'>",
                                               genera_fecha(Sys.time()),"</font"))
-      
       
       print(mapa)
 
@@ -335,8 +420,9 @@ observeEvent(input$leyenda,{
                         labels = etiqueta, 
                         opacity = 1,
                         title = 'Estado del embalse',
-                        layerId="leyenda") %>%
-              setView(x0,y0,zoom=z0)
+                        layerId="leyenda") 
+        #%>%
+        #      setView(x0,y0,zoom=z0)
     
   }else
   {
@@ -364,6 +450,50 @@ observeEvent(input$escala,{
   }
 })
 
+  ####################################################################
+  #definir evento para anadir o quitar los rectangulos de los embalses  
+  ####################################################################
+  
+  observeEvent(input$rectangulo,{
+    if(input$buscaDatos)
+    {
+      proxy <- leafletProxy("mapa",session)
+      if(input$rectangulo)
+      {      
+        proxy %>% showGroup("rectangulo")    
+      }else
+      {
+        proxy %>% hideGroup("rectangulo")
+      }
+    }
+  })  
+    
+#######################################################################
+#definir evento para anadir o quitar la capa con zonas de racionamiento
+#######################################################################
+  
+observeEvent(input$racionamiento,{
+  if(input$buscaDatos)
+  {
+    proxy <- leafletProxy("mapa",session)
+    if(input$racionamiento)
+    {      
+      proxy %>% showGroup("poligono") %>% showGroup("zona") 
+      proxy %>% addLegend(title="Zonas",
+                                 layerId="leyenda.racionamiento",
+                                 colors=c("red","green"),
+                                 opacity=1.0,
+                                 position="bottomright",
+                                 labels=c("En racionamiento",
+                                          "Susceptible a racionamiento"))  
+    }else
+    {
+      proxy %>% hideGroup("poligono") %>% hideGroup("zona") 
+      proxy %>% removeControl(layerId="leyenda.racionamiento") 
+    }
+  }
+  
+  })
 })
 
 
