@@ -23,8 +23,8 @@ cadena2a <- "<p align='justify'>La <font color='blue'> <b>altura </b> </font> de
             de color es proporcional al <font color='blue'><b>nivel del embalse</b></font> 
             y la flecha indica la   <font color='blue'><b>tendencia del nivel </b></font> en 
             las &uacute;ltimas horas. Puede oprimir en los rect&aacute;ngulos para obtener mas informaci&oacute;n.
-            El c&oacute;digo de colores y los niveles de alerta est&aacute;n basados en la p&aacute;gina
-            <font color='blue'>http://acueductospr.com/AAARepresas/tabla.</font></p>"
+            El c&oacute;digo de colores, los niveles de alerta, y las zonas (aproximadas) de racionamiento est&aacute;n 
+            basadas en informaci&oacute;n oficial provista en  <font color='blue'>http://acueductospr.com.</font</p>"
 
 cadena2b <- "<p align='justify'>El <font color='blue'> <b>radio</b> </font> de los c&iacute;rculos 
             de color es proporcional al <font color='blue'><b>nivel del embalse</b></font> 
@@ -50,7 +50,8 @@ licencia <- "<a rel='license' href='http://creativecommons.org/licenses/by-nc-sa
             Commons Atribuci&oacute;n-NoComercial-CompartirIgual 4.0 Internacional</a>."
 
 
-shinyUI(fluidPage(theme = shinytheme("cosmo"),
+shinyUI(fluidPage(
+  theme = shinytheme("cosmo"),
   titlePanel("",windowTitle="EmbalsesPR"),
   h1("embalsesPR",align="left",style = "color:Maroon"),
   sidebarLayout(
@@ -60,6 +61,9 @@ shinyUI(fluidPage(theme = shinytheme("cosmo"),
       actionButton("buscaDatos","Buscar datos..",icon=icon("search")),
       br(),
       br(),
+      checkboxInput(inputId = "rectangulo",
+                    label = "Mostrar rectángulo de embalse",
+                    value = TRUE),
       checkboxInput(inputId = "tendencia",
                    label = "Mostrar flecha de tendencia",
                    value = TRUE),
@@ -69,6 +73,9 @@ shinyUI(fluidPage(theme = shinytheme("cosmo"),
       checkboxInput(inputId = "leyenda",
                    label = "Mostrar leyenda",
                    value = TRUE),
+      checkboxInput(inputId = "racionamiento",
+                    label = "Mostrar zonas de racionamiento",
+                    value = TRUE),
       br(),
      
       conditionalPanel(condition = "input.buscaDatos == true",HTML(cadena2a)),
@@ -79,6 +86,6 @@ shinyUI(fluidPage(theme = shinytheme("cosmo"),
 
     ),
   mainPanel(
-    leafletOutput("mapa",width="100%",height=580)
-  ))))
+    leafletOutput("mapa",width="100%",height=580))
+  )))
 
