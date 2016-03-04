@@ -6,6 +6,7 @@
 # Universidad de Puerto Rico en Humacao 
 ##############################################
 
+
 # hacer busqueda en el servidor de USGS para el dia de hoy 
 # los datos que devuelve comienzan a las 12 de la medianoche 
 # del dia en curso. En el mapa se muestra la medida mas reciente
@@ -75,11 +76,13 @@ genera_break <- function(x)
 
 generaURL <- function(startDate,endDate,misiteID)
 {
-  url.parte1 <- "http://nwis.waterdata.usgs.gov/pr/nwis/uv/?cb_62616=on&format=rdb&site_no="
+  #url.parte1 <- "http://nwis.waterdata.usgs.gov/pr/nwis/uv/?cb_62616=on&format=rdb&site_no="
+  url.parte1 <- "http://waterdata.usgs.gov/pr/nwis/uv/?format=rdb&site_no="
   url.parte2 <- paste0(misiteID,"&period=&begin_date=",startDate,"&end_date=",endDate)
   url.final <- paste0(url.parte1,url.parte2)
   return(url.final)
 }
+
 
 ############################################
 # funcion para buscar datos de nivel en USGS
@@ -88,21 +91,30 @@ generaURL <- function(startDate,endDate,misiteID)
 buscaNiveles <- function(misiteID,startDate=fecha1,endDate=fecha2)
 {
   minombre <- df$nombre[df$siteID == misiteID]
-  incProgress(0.1,detail=toupper(minombre))
+  incProgress(0.36,detail=toupper(minombre))
   url.final <- generaURL(startDate,endDate,misiteID)
   #print(url.final)
-  datos <- tryCatch(read.table(url.final,sep="\t",header=TRUE),finally=NULL)
-  if(length(datos)==6)
+  #check.url <- url.exists(url.final)
+  #print(paste0(minombre," - ",check.url),quote=FALSE)
+  datos <- read.table(url.final,sep="\t",header=TRUE)
+  #print(tail(datos,n=1))
+  
+  if(length(datos) > 6)
   {
-    names(datos) <- c("agency","site","datetime","codigo","nivel","status")
+    #names(datos) <- c("agency","site","datetime","codigo","nivel","status")
     fecha.tiempo <- datos$datetime[-1]
-    nivel.tiempo <- round(convierteNumerico(datos$nivel[-1]),digits=2)
-    tendencia <- mean(diff(nivel.tiempo))
-    desviacion.estandar <- sd(nivel.tiempo)
+    inx.nivel<- grep("_62616",names(datos))[1] 
+    nivel.tiempo <- round(convierteNumerico(datos[-1,inx.nivel]),digits=2)
+    print(nivel.tiempo)
+    tendencia <- mean(diff(nivel.tiempo),na.rm=TRUE)
+    print(tendencia)
+    cambio.nivel <- tail(nivel.tiempo,n=1) - nivel.tiempo[1]
+    desviacion.estandar <- sd(nivel.tiempo,na.rm=TRUE)
     par(mar=c(0,0,0,0))
     x.data <- hour(fecha.tiempo) + minute(fecha.tiempo)/60
     xx <- genera_break(x.data)
     titulo <- paste0("Nivel de embalse ",toupper(minombre),"\n en las pasadas ",round(max(x.data)-min(x.data))," horas")
+    #titulo <- paste0(toupper(minombre),"\n en las pasadas ",round(max(x.data)-min(x.data))," horas"," ",cambio.nivel.cm)
     y.lim1  <- c(min(nivel.tiempo) - 10*desviacion.estandar,max(nivel.tiempo) + 10*desviacion.estandar)
     y.lim2  <- c(min(nivel.tiempo) - desviacion.estandar,max(nivel.tiempo) + desviacion.estandar)
     # grafica con el nivel desde la medianoche hasta el presente
@@ -134,6 +146,7 @@ buscaNiveles <- function(misiteID,startDate=fecha1,endDate=fecha2)
     df.niveles <- data.frame(fecha=tail(fecha.tiempo,n=1),
                              nivel=tail(nivel.tiempo,n=1),
                              tendencia=tendencia,
+                             cambio.nivel =cambio.nivel,
                              stringsAsFactors = FALSE)
   }else
   {
@@ -159,7 +172,8 @@ buscaNiveles <- function(misiteID,startDate=fecha1,endDate=fecha2)
      #dev.off()
      df.niveles <- data.frame(fecha=tail(fecha,n=1),
                               nivel=tail(nivel,n=1),
-                              tendencia=-99)
+                              tendencia=-99,
+                              cambio.nivel=-99)
   }
   #print(df.niveles)
   return(df.niveles)
