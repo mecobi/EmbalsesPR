@@ -10,7 +10,9 @@ library(shiny)          # interfaz grafica en linea con R
 library(leaflet)        # para hacer mapa interactivo
 library(lubridate)      # funciones utiles para manejo de fechas 
 library(ggplot2)
-
+library(RCurl)
+library(ddR)
+library(plyr)
 
 ## llamar rutinas utiles 
 
@@ -41,6 +43,7 @@ flecha_arriba <- "./www/arrow_up.png"
 flecha_abajo  <- "./www/arrow_down.png"
 flecha_plana  <- "./www/arrow_right.png"
 calabera      <- "./www/danger5.png"
+carraizo      <- "./www/Carraizo.png"
 
 
 ################################################
@@ -88,10 +91,22 @@ extiende.df <- function(df)
   ndat <- length(df$nombre)
   if(length(df$nivel) < ndat)
   {
-  temp <- as.data.frame(t(sapply(df$siteID,buscaNiveles)))
-  df$fecha <- as.vector(unlist(temp$fecha))
-  df$nivel <- as.vector(unlist(temp$nivel))
-  df$tendencia <- as.vector(unlist(temp$tendencia))
+  #temp <- as.data.frame(t(sapply(df$siteID,buscaNiveles)))
+  #df$fecha <- as.vector(unlist(temp$fecha))
+  #df$nivel <- as.vector(unlist(temp$nivel))
+  #df$tendencia <- as.vector(unlist(temp$tendencia))
+  #df$cambio.nivel <- as.vector(unlist(temp$cambio.nivel))
+
+  a <- dmapply(function(x) buscaNiveles(x), df$siteID,nparts=4)
+    
+  temp <- ldply(collect(a),rbind)
+  
+  df$fecha        <- temp$fecha
+  df$nivel        <- temp$nivel
+  df$tendencia    <- temp$tendencia
+  df$cambio.nivel <- temp$cambio.nivel
+
+
   micolor     <- rep(0,ndat) 
   miopacidad <- rep(0,ndat)
   mifecha <- rep(0,ndat)
@@ -108,6 +123,8 @@ extiende.df <- function(df)
                                              as.vector(df[siteInx,c(9:5)]))] 
     mifecha[siteInx] <- genera_fecha(df$fecha[siteInx])
   }
+
+  micolor[is.na(micolor)] <- "darkgreen" 
   
   df$micolor    <- micolor
   df$miopacidad <- miopacidad
@@ -126,8 +143,28 @@ flecha_tendencia <- function(mapa,df2)
                                lng=df2$longitude,
                                lat=df2$latitude + 0.028,
                                icon=miIcono,
-                               layerId=df2$nombre)    
+                               layerId=df2$nombre)   
   return(mapa)
+}
+
+###########################################
+## funcion para mostrar nombre del embalse 
+###########################################
+
+nombre_embalse <- function(mapa,df2)
+{
+  
+  altura <<- 0.09
+  
+  mapa <- mapa %>% addPopups(df2$longitude,df2$latitude - altura, 
+                             as.character(df2$nombre),
+                             group="nombre",
+                             options=popupOptions(
+                               zoomAnimation=TRUE,
+                               maxWidth= 200,
+                               closeOnClick = FALSE, 
+                               closeButton = FALSE))
+  
 }
 
 ###########################################
@@ -188,7 +225,7 @@ rectangulo_embalse <- function(mapa,df2)
   
   mapa <- mapa %>% 
     addRectangles(fill=FALSE,
-                  group="escala",
+                  group="rectangulo",
                   weight=0.5,
                   color="black",
                   opacity=1,
@@ -200,7 +237,7 @@ rectangulo_embalse <- function(mapa,df2)
   
   mapa <- mapa %>% 
     addRectangles(fill=FALSE,
-                  group="escala",
+                  group="rectangulo",
                   weight=0.5,
                   color="black",
                   opacity=1,
@@ -213,7 +250,7 @@ rectangulo_embalse <- function(mapa,df2)
   
   mapa <- mapa %>% 
     addRectangles(fill=FALSE,
-                  group="escala",
+                  group="rectangulo",
                   weight=0.5,
                   color="black",
                   opacity=1,
@@ -222,6 +259,14 @@ rectangulo_embalse <- function(mapa,df2)
                   lng2=df2$longitude+grosor1,
                   lat2=df2$latitude+altura1*normalizaNivel(df2$ajuste,df2$control,df2$desborde),
                   popup=contenido)
+  
+  mapa <- mapa  %>% addMarkers(group="rectangulo", 
+                               lng=df2$longitude,
+                               lat=df2$latitude + 0.028,
+                               icon=miIcono,
+                               layerId=df2$nombre)  
+  
+  
   
   return(mapa)
   
@@ -293,7 +338,7 @@ shinyServer(function(input, output,session){
   
         nivel.norm <<- normalizaNivel(df2$nivel,df2$ajuste,df2$desborde)
         
-        df2$tendencia <- round(df2$tendencia,digits=3)
+        df2$tendencia <- round(df2$tendencia,digits=4)
   
         iconUrl <- rep("",length(df2$tendencia))
         
@@ -331,26 +376,41 @@ shinyServer(function(input, output,session){
         
         unidades[df2$tendencia <= -99] <- ""
         
+        comentario.temp <- df2$cambio.nivel*100
+        
+        texto <- rep("xyz",length(df2$tendencia))
+        
+        texto[df2$tendencia > 0] <- "Aument&oacute; "
+        texto[df2$tendencia < 0] <- "Disminuy&oacute; "
+        texto[df2$tendencia == 0] <- "No cambi&oacute; significativamente "
+        
+        comentario <- paste(texto,sprintf("%2.1f cm",abs(comentario.temp)))
+        
         contenido <<- paste0("<B><font color='blue'>",toupper(df2$nombre),"</font></B>","<BR/>",
-                   "<font color='blue'><B>Nivel: </B></font>",
+                   "<font color='black'><B>Nivel: </B></font>",
                    sprintf("%3.2f",df2$nivel),unidades,"<BR/>",
-                   "<B><font color='blue'>Fecha: </B></font>",df2$mifecha,
+                   "<B><font color='black'>Fecha: </B></font>",df2$mifecha,"<BR>",
+                   "<B><font color='black'>Comentario: </B></font>",comentario,"<BR>",
                    #"<BR> <font color='blue'>Gr&aacute;fica del nivel desde las 12 de la medianoche...</font>",
                    "<p align='center'><img src='",imagenes,"' height='250' width='250' border='0' </p>")
     
        ## SECCION de ZONAS de racionamiento 
         
-       mapa <- zona_racionamiento(mapa,datos.muni,lista.muni,poli)
+       #mapa <- zona_racionamiento(mapa,datos.muni,lista.muni,poli)
          
        ## SECCION de RECTANGULOS 
                 
        mapa <- rectangulo_embalse(mapa,df2) 
-        
+          
        incProgress(0.33)
+       
+       ## SECCION nombre del embalse
+       
+       mapa <- nombre_embalse(mapa,df2)
        
        ## SECCION de FLECHA de tendencia 
        
-       mapa <- flecha_tendencia(mapa,df2)
+       #mapa <- flecha_tendencia(mapa,df2)
       
        # incluir leyenda 
        
@@ -388,19 +448,19 @@ shinyServer(function(input, output,session){
 #definir evento para anadir o quitar la flecha de tendencia sin tener que recargar
 ##################################################################################
 
-observeEvent(input$tendencia,{
-    if(input$buscaDatos)
-    {
-        proxy <- leafletProxy("mapa",session)
-        if(input$tendencia)
-        {
-          proxy %>% showGroup("tendencia")
-        }else
-        { 
-          proxy %>% hideGroup("tendencia")
-        }
-    }
-  })
+# observeEvent(input$tendencia,{
+#     if(input$buscaDatos)
+#     {
+#         proxy <- leafletProxy("mapa",session)
+#         if(input$tendencia)
+#         {
+#           proxy %>% showGroup("tendencia")
+#         }else
+#         { 
+#           proxy %>% hideGroup("tendencia")
+#         }
+#     }
+#   })
 
 
 #######################################################################
@@ -421,9 +481,7 @@ observeEvent(input$leyenda,{
                         opacity = 1,
                         title = 'Estado del embalse',
                         layerId="leyenda") 
-        #%>%
-        #      setView(x0,y0,zoom=z0)
-    
+
   }else
   {
 
@@ -450,20 +508,30 @@ observeEvent(input$escala,{
   }
 })
 
-  ####################################################################
-  #definir evento para anadir o quitar los rectangulos de los embalses  
-  ####################################################################
+  #################################################################################
+  #definir evento para anadir o quitar el grafico del estado actual de los embalses   
+  #################################################################################
   
   observeEvent(input$rectangulo,{
     if(input$buscaDatos)
     {
       proxy <- leafletProxy("mapa",session)
+      z0 <- input$mapa_zoom
+      lim <- input$mapa_bounds
+      x0 <- (lim$east + lim$west)/2.0
+      y0 <- (lim$north + lim$south)/2.0
       if(input$rectangulo)
       {      
-        proxy %>% showGroup("rectangulo")    
+        proxy %>% showGroup("rectangulo")  %>% 
+          addLegend(position = 'topright',
+                    colors = codigo.colores,
+                    labels = etiqueta, 
+                    opacity = 1,
+                    title = 'Estado del embalse',
+                    layerId="leyenda")   
       }else
       {
-        proxy %>% hideGroup("rectangulo")
+        proxy %>% hideGroup("rectangulo") %>% removeControl("leyenda")
       }
     }
   })  
@@ -494,6 +562,43 @@ observeEvent(input$racionamiento,{
   }
   
   })
+  
+  #######################################################################
+  # definir evento para anadir o quitar los nombres de los embalses
+  #######################################################################
+  
+  observeEvent(input$nombre,{
+    proxy <- leafletProxy("mapa",session)
+    if(input$nombre & input$buscaDatos)
+    { 
+      proxy %>% showGroup("nombre")
+    }else
+    {
+      
+      proxy %>% hideGroup("nombre")
+    }
+  })
+
+# algunos intentos de implementar un hover sobre el mapa 
+# observeEvent(input$mapa_shape_mouseover,{
+#  loc <- input$mapa_shape_mouseover
+#  proxy <- leafletProxy("mapa",session)
+#  proxy %>% addMarkers(loc$lng,loc$lat, 
+#           group="hover",
+#           popup="oprima aqui",
+#           options=markerOptions(riseOnHover=TRUE))
+#           
+# })
+# 
+# observeEvent(input$mapa_shape_mouseout,{
+#   loc <- input$mapa_shape_mouseover
+#   print(loc)
+#   proxy <- leafletProxy("mapa",session)
+#   proxy %>% hideGroup("hover")
+# })
+
+
+  
 })
 
 
